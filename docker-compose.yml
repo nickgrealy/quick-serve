@@ -8,3 +8,4 @@ services:
     volumes:
       - /tmp:/serve
     command: /bin/sh -c 'wget https://raw.githubusercontent.com/nickgrealy/quick-serve/main/src/index.js && node index.js'
+    restart: unless-stopped
