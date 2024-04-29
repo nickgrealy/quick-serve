@@ -57,9 +57,9 @@ const httpServer = http.createServer((req, res) => {
   if (fs.existsSync(filepath)) {
     // try to handle rich media first
     if (renderPage && mimeType.startsWith('audio')) {
-      respond(res, 200, `<html><head><title>${relpath}</title></head><body><h1>${relpath}</h1><audio width="100%" autoplay controls><source src="/${encodeURIComponent(relpath)}?view=0" type="${mimeType}"></audio></body></html>`)
+      respond(res, 200, `<html><head><title>${relpath}</title></head><body><h1>${relpath}</h1><audio width="100%" autoplay controls preload="metadata"><source src="/${encodeURIComponent(relpath)}?view=0" type="${mimeType}"></audio></body></html>`)
     } else if (renderPage && mimeType.startsWith('video')) {
-      respond(res, 200, `<html><head><title>${relpath}</title></head><body><h1>${relpath}</h1><video width="100%" autoplay controls><source src="/${encodeURIComponent(relpath)}?view=0" type="${mimeType}"></video></body></html>`)
+      respond(res, 200, `<html><head><title>${relpath}</title></head><body><h1>${relpath}</h1><video width="100%" autoplay controls preload="metadata"><source src="/${encodeURIComponent(relpath)}?view=0" type="${mimeType}"></video></body></html>`)
     } else if (fs.statSync(filepath).isDirectory()) {
       // list files
       res.write(`<h1>Index of <a href="${encodeURIComponent(path.join(relpath, '..'))}">${relpath}</a></h1><hr>`)
