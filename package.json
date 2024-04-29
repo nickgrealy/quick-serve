@@ -1,0 +1,16 @@
+{
+  "name": "quick-serve",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "start": "nodemon src/index.js",
+    "docker": "docker run -it --rm -p 3000:3000 node:lts-alpine node src/index.js"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "devDependencies": {
+    "nodemon": "3.1.0"
+  }
+}
