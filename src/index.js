@@ -43,19 +43,33 @@ const respond = (res, statusCode, body) => {
 
 const httpServer = http.createServer((req, res) => {
   // get path from url
-  const renderPage = req.url.endsWith('#view')
+  console.log(req.url)
+  const renderPage = req.url.endsWith('?view=1')
   const url = new URL(req.url, `http://localhost:${portNumber}`);
   const relpath = decodeURIComponent(url.pathname.replace(/\?.*$/, '')).replace(/\/+/g, '/');
   const filepath = path.join(basedir, relpath);
+  const ext = path.extname(filepath).toLowerCase();
+  const mimeType = mimeTypes[ext] ? mimeTypes[ext] : 'text/html'
 
-  // path exists?
+  // required for rich media
+  res.setHeader("Content-Type", 'text/html')
+
   if (fs.existsSync(filepath)) {
-    if (fs.statSync(filepath).isDirectory()) {
+    // try to handle rich media first
+    if (renderPage && mimeType.startsWith('audio')) {
+      respond(res, 200, `<html><head><title>${relpath}</title></head><body><h1>${relpath}</h1><audio width="100%" autoplay controls><source src="/${encodeURIComponent(relpath)}?view=0" type="${mimeType}"></audio></body></html>`)
+    } else if (renderPage && mimeType.startsWith('video')) {
+      respond(res, 200, `<html><head><title>${relpath}</title></head><body><h1>${relpath}</h1><video width="100%" autoplay controls><source src="/${encodeURIComponent(relpath)}?view=0" type="${mimeType}"></video></body></html>`)
+    } else if (fs.statSync(filepath).isDirectory()) {
       // list files
       res.write(`<h1>Index of <a href="${encodeURIComponent(path.join(relpath, '..'))}">${relpath}</a></h1><hr>`)
       fs.readdirSync(filepath).forEach(file => {
         const isDirectory = fs.statSync(path.join(filepath, file)).isDirectory()
-        res.write(`<a href="/${encodeURIComponent(path.join(relpath, file))}">${isDirectory ? '+' : '-'} ${file}</a><br>`)
+        if (isDirectory) {
+          res.write(`<a href="/${encodeURIComponent(path.join(relpath, file))}">+ ${file}</a><br>`)
+        } else {
+          res.write(`<a href="/${encodeURIComponent(path.join(relpath, file))}?view=1">- ${file}</a><br>`)
+        }
       })
       res.end()
     } else {
