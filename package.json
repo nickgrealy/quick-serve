@@ -5,7 +5,7 @@
   "main": "index.js",
   "scripts": {
     "start": "nodemon src/index.js",
-    "docker": "docker run -it --rm -p 3000:3000 node:lts-alpine node src/index.js"
+    "docker": "docker run -it --rm -p 3000:3000 node:lts-alpine /bin/sh -c 'wget https://raw.githubusercontent.com/nickgrealy/quick-serve/main/src/index.js && node index.js'"
   },
   "keywords": [],
   "author": "",

@@ -2,7 +2,7 @@ const fs = require("fs");
 const path = require("path");
 const http = require("http");
 
-const basedir = process.env.BASEDIR || process.env.HOME || '/tmp'
+const basedir = process.env.BASEDIR || '/serve'
 const portNumber = parseInt(process.env.PORT || '3000');
 
 const respond = (res, statusCode, body) => {
@@ -40,10 +40,12 @@ const httpServer = http.createServer((req, res) => {
 httpServer.listen(portNumber, () => console.log("Server is listening on port " + portNumber));
 
 // exit on error
-process.on('SIGINT', () => {
-  console.log('Received SIGINT. Shutting down gracefully...');
-  httpServer.close(() => {
-    console.log('Server closed');
-    process.exit(0);
+['SIGINT', 'SIGTERM', 'SIGQUIT'].forEach(signal => {
+  process.on(signal, () => {
+    console.log('Received SIGINT. Shutting down gracefully...');
+    httpServer.close(() => {
+      console.log('Server closed');
+      process.exit(0);
+    });
   });
 });
