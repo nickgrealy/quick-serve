@@ -64,7 +64,7 @@ const httpServer = http.createServer((req, res) => {
       // list files
       res.write(`<h1>Index of <a href="${encodeURIComponent(path.join(relpath, '..'))}">${relpath}</a></h1><hr>`)
       fs.readdirSync(filepath).forEach(file => {
-        const resolvedFile = path.join(filepath, file);
+        const resolvedFile = path.resolve(filepath, file);
         if (fs.existsSync(resolvedFile)) {
           const isDirectory = fs.statSync(resolvedFile).isDirectory()
           if (isDirectory) {
