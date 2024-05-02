@@ -64,11 +64,16 @@ const httpServer = http.createServer((req, res) => {
       // list files
       res.write(`<h1>Index of <a href="${encodeURIComponent(path.join(relpath, '..'))}">${relpath}</a></h1><hr>`)
       fs.readdirSync(filepath).forEach(file => {
-        const isDirectory = fs.statSync(path.join(filepath, file)).isDirectory()
-        if (isDirectory) {
-          res.write(`<a href="/${encodeURIComponent(path.join(relpath, file))}">+ ${file}</a><br>`)
+        const resolvedFile = path.join(filepath, file);
+        if (fs.existsSync(resolvedFile)) {
+          const isDirectory = fs.statSync(resolvedFile).isDirectory()
+          if (isDirectory) {
+            res.write(`<a href="/${encodeURIComponent(path.join(relpath, file))}">+ ${file}</a><br>`)
+          } else {
+            res.write(`<a href="/${encodeURIComponent(path.join(relpath, file))}?view=1">- ${file}</a><br>`)
+          }
         } else {
-          res.write(`<a href="/${encodeURIComponent(path.join(relpath, file))}?view=1">- ${file}</a><br>`)
+          res.write(`<a href="/${encodeURIComponent(path.join(relpath, file))}?view=1">? ${file}</a><br>`)
         }
       })
       res.end()
