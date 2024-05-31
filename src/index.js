@@ -1,9 +1,19 @@
 const fs = require("fs");
+const fsPromise = require("fs/promises");
 const path = require("path");
 const http = require("http");
 const sharp = require("sharp");
 const { pipeline } = require("stream")
-const { getSize } = require("./range");
+
+const cache = {}
+
+const getSize = async (filepath) => {
+    if (!cache[filepath]) {
+        const stats = await fsPromise.stat(filepath)
+        cache[filepath] = stats.size
+    }
+    return cache[filepath]
+}
 
 const mimeTypes = {
   ".png": "image/png",
