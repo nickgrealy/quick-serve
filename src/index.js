@@ -114,7 +114,7 @@ const httpServer = http.createServer(async (req, res) => {
       } else {
         res.write(`<a style="float:right;" href="?view=grid">Grid</a>`)
       }
-      res.write(`<h1>Index of <a href="${encodeURIComponent(path.join(relpath, '..'))}">${relpath}</a></h1>`)
+      res.write(`<h1>Index of <a href="${encodeURIComponent(path.join(relpath, '..'))}?view=${gridView ? 'grid' : 'list'}">${relpath}</a></h1>`)
       res.write('<hr>')
       res.write('</nav>')
 
@@ -124,7 +124,7 @@ const httpServer = http.createServer(async (req, res) => {
       } else if (renderPage && mimeType.startsWith('video')) {
         res.write(`<video class="fill" autoplay controls preload="metadata"><source src="/${encodeURIComponent(relpath)}?view=0" type="${mimeType}"></video>`)
       } else if (renderPage && mimeType.startsWith('image')) {
-        res.write(`<img class="fill" src="/${encodeURIComponent(relpath)}?view=0" />`)
+        res.write(`<img class="fill" src="/${encodeURIComponent(relpath)}?view=${gridView ? 'grid' : 'list'}" />`)
       } else if (isDirectoryListing) {
 
         res.write(`<section class="${gridView ? 'grid' : ''}">`)
@@ -139,7 +139,7 @@ const httpServer = http.createServer(async (req, res) => {
           const resolvedFile = path.resolve(filepath, file);
           if (fs.existsSync(resolvedFile)) {
             if (isDirectory(resolvedFile)) {
-              res.write(`<a href="/${encodeURIComponent(path.join(relpath, file))}">+ ${file}</a><br>`)
+              res.write(`<a href="/${encodeURIComponent(path.join(relpath, file))}?view=${gridView ? 'grid' : 'list'}">+ ${file}</a><br>`)
             } else {
               // grid view
               const media = isMediaType(getMimeType(file))
