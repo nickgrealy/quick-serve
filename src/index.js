@@ -8,11 +8,11 @@ const { pipeline } = require("stream")
 const cache = {}
 
 const getSize = async (filepath) => {
-    if (!cache[filepath]) {
-        const stats = await fsPromise.stat(filepath)
-        cache[filepath] = stats.size
-    }
-    return cache[filepath]
+  if (!cache[filepath]) {
+    const stats = await fsPromise.stat(filepath)
+    cache[filepath] = stats.size
+  }
+  return cache[filepath]
 }
 
 const mimeTypes = {
@@ -67,7 +67,15 @@ const isMediaType = (mimetype) => {
   const isAudio = mimetype.startsWith('audio');
   const isVideo = mimetype.startsWith('video');
   return { isImage, isAudio, isVideo, isMedia: isImage || isAudio || isVideo }
+}
 
+// GUARD: operation not supported on socket
+const isDirectory = (filepath) => {
+  try {
+    return fs.statSync(filepath).isDirectory()
+  } catch (err) {
+    return false
+  }
 }
 
 const httpServer = http.createServer(async (req, res) => {
@@ -83,7 +91,7 @@ const httpServer = http.createServer(async (req, res) => {
 
   if (fs.existsSync(filepath)) {
 
-    const isDirectoryListing = fs.statSync(filepath).isDirectory();
+    const isDirectoryListing = isDirectory(filepath);
 
     if (renderPage || isDirectoryListing) {
 
@@ -123,15 +131,14 @@ const httpServer = http.createServer(async (req, res) => {
         // list files
         fs.readdirSync(filepath).sort((a, b) => {
           // directories first, then alphabetical
-          const adir = fs.statSync(path.join(filepath, a)).isDirectory()
-          const bdir = fs.statSync(path.join(filepath, b)).isDirectory()
+          const adir = isDirectory(path.join(filepath, a))
+          const bdir = isDirectory(path.join(filepath, b))
           const compareCaseInsensitive = a.localeCompare(b, undefined, { sensitivity: 'base' })
           return adir && bdir ? compareCaseInsensitive : adir ? -1 : bdir ? 1 : compareCaseInsensitive
         }).forEach(file => {
           const resolvedFile = path.resolve(filepath, file);
           if (fs.existsSync(resolvedFile)) {
-            const isDirectory = fs.statSync(resolvedFile).isDirectory()
-            if (isDirectory) {
+            if (isDirectory(resolvedFile)) {
               res.write(`<a href="/${encodeURIComponent(path.join(relpath, file))}">+ ${file}</a><br>`)
             } else {
               // grid view
