@@ -182,6 +182,7 @@ const httpServer = http.createServer(async (req, res) => {
       const size = await getSize(filepath);
       if (range) {
         // handle range
+        // inspired by: https://github.com/phoenixinfotech1984/node-content-range
         let [start, end] = range.replace(/bytes=/, "").split("-");
         const chunksize = 1024 * 1024 * 0.5 // MB
         start = parseInt(start, 10);
