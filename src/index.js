@@ -69,12 +69,30 @@ const isMediaType = (mimetype) => {
   return { isImage, isAudio, isVideo, isMedia: isImage || isAudio || isVideo }
 }
 
+// convert bytes to human readable format
+const humanFileSize = (bytes, si = false) => {
+  const thresh = si ? 1000 : 1024;
+  if (Math.abs(bytes) < thresh) {
+    return bytes + ' B';
+  }
+  const units = si
+    ? ['kB', 'MB', 'GB', 'TB', 'PB', 'EB', 'ZB', 'YB']
+    : ['KiB', 'MiB', 'GiB', 'TiB', 'PiB', 'EiB', 'ZiB', 'YiB'];
+  let u = -1;
+  const r = 10;
+  do {
+    bytes /= thresh;
+    ++u;
+  } while (Math.round(Math.abs(bytes) * r) / r >= thresh && u < units.length - 1);
+  return bytes.toFixed(1) + ' ' + units[u];
+}
+
 // GUARD: operation not supported on socket
-const isDirectory = (filepath) => {
+const safeStat = async (filepath) => {
   try {
-    return fs.statSync(filepath).isDirectory()
+    return fsPromise.stat(filepath)
   } catch (err) {
-    return false
+    return { isDirectory: false, size: 0 }
   }
 }
 
@@ -91,7 +109,7 @@ const httpServer = http.createServer(async (req, res) => {
 
   if (fs.existsSync(filepath)) {
 
-    const isDirectoryListing = isDirectory(filepath);
+    const isDirectoryListing = (await safeStat(filepath)).isDirectory();
 
     if (renderPage || isDirectoryListing) {
 
@@ -106,7 +124,8 @@ const httpServer = http.createServer(async (req, res) => {
       res.write('<style>main{padding:10px;gap:10px;display:flex;flex-direction:column;}</style>')
       res.write('<style>section{min-height:1px;height:100%;overflow-y:auto;justify-content:flex-start;align-content:flex-start;}</style>')
       res.write('<style>img.fill,video.fill{max-height:90%;object-fit:contain;}</style>')
-      res.write('<style>section.grid{display:flex;flex-wrap:wrap;gap:2px;}.grid img,.grid video,.grid > *{display:flex;justify-content:center;align-items:center;overflow-wrap:anywhere;width:200px;height:200px;object-fit:cover;}.grid > *:hover{background:#eee;}</style>')
+      res.write('<style>.grid{display:flex;flex-wrap:wrap;gap:2px;}.grid img,.grid video,.grid > *{display:flex;justify-content:center;align-items:center;overflow-wrap:anywhere;width:200px;height:200px;object-fit:cover;}.grid > *:hover{background:#eee;}</style>')
+      res.write('<style>.list{display:flex;flex-direction:column;gap:2px;}.list .row{display:flex;flex-direction:row;justify-content:space-between;}</style>')
       res.write(`</head><body><main>`)
       res.write('<nav>')
       if (gridView) {
@@ -127,35 +146,48 @@ const httpServer = http.createServer(async (req, res) => {
         res.write(`<img class="fill" src="/${encodeURIComponent(relpath)}?view=${gridView ? 'grid' : 'list'}" />`)
       } else if (isDirectoryListing) {
 
-        res.write(`<section class="${gridView ? 'grid' : ''}">`)
+        res.write(`<section class="${gridView ? 'grid' : 'list'}">`)
+        const entries = fs.readdirSync(filepath);
+        /** @type {Object<string, fs.Stats>} */
+        const statsByFile = entries.reduce((prev, curr) => {
+          prev[curr] = fs.statSync(path.join(filepath, curr))
+          return prev
+        }, {})
+        await Promise.all(Object.values(statsByFile))
         // list files
-        fs.readdirSync(filepath).sort((a, b) => {
+        entries.sort((a, b) => {
           // directories first, then alphabetical
-          const adir = isDirectory(path.join(filepath, a))
-          const bdir = isDirectory(path.join(filepath, b))
+          const adir = statsByFile[a].isDirectory()
+          const bdir = statsByFile[b].isDirectory()
           const compareCaseInsensitive = a.localeCompare(b, undefined, { sensitivity: 'base' })
           return adir && bdir ? compareCaseInsensitive : adir ? -1 : bdir ? 1 : compareCaseInsensitive
         }).forEach(file => {
           const resolvedFile = path.resolve(filepath, file);
-          if (fs.existsSync(resolvedFile)) {
-            if (isDirectory(resolvedFile)) {
-              res.write(`<a href="/${encodeURIComponent(path.join(relpath, file))}?view=${gridView ? 'grid' : 'list'}">+ ${file}</a><br>`)
+          if (statsByFile[file].isDirectory()) {
+            // directory
+            res.write(`<a href="/${encodeURIComponent(path.join(relpath, file))}?view=${gridView ? 'grid' : 'list'}">+ ${file}</a>`)
+          } else {
+            // grid view
+            const media = isMediaType(getMimeType(file))
+            if (gridView && media.isImage) {
+              // images
+              res.write(`<a href="/${encodeURIComponent(path.join(relpath, file))}?view=page"><img loading="lazy" src="/${encodeURIComponent(path.join(relpath, file))}?view=thumb" /></a>`)
+            } else if (gridView && media.isVideo) {
+              // videos
+              res.write(`<a href="/${encodeURIComponent(path.join(relpath, file))}?view=page"><video controls loading="lazy"><source src="/${encodeURIComponent(path.join(relpath, file))}?view=0#t=0.1" /></video></a>`)
             } else {
-              // grid view
-              const media = isMediaType(getMimeType(file))
-              if (gridView && media.isImage) {
-                // images
-                res.write(`<a href="/${encodeURIComponent(path.join(relpath, file))}?view=page"><img loading="lazy" src="/${encodeURIComponent(path.join(relpath, file))}?view=thumb" /></a>`)
-              } else if (gridView && media.isVideo) {
-                // videos
-                res.write(`<a href="/${encodeURIComponent(path.join(relpath, file))}?view=page"><video controls loading="lazy"><source src="/${encodeURIComponent(path.join(relpath, file))}?view=0#t=0.1" /></video></a>`)
+              // everything else
+              if (gridView) {
+                res.write(`<a href="/${encodeURIComponent(path.join(relpath, file))}?view=page">${file}</a>`)
               } else {
-                // everything else
-                res.write(`<a href="/${encodeURIComponent(path.join(relpath, file))}?view=page">${file}</a><br>`)
+                res.write(`<div class="row">
+                <a href="/${encodeURIComponent(path.join(relpath, file))}?view=page">${file}</a>
+                <span>${humanFileSize(statsByFile[file].size, true)}
+                /
+                ${statsByFile[file].mtime.toISOString().substring(0, 10)}</span>
+                </div>`)
               }
             }
-          } else {
-            res.write(`<a href="/${encodeURIComponent(path.join(relpath, file))}?view=page">${file}</a><br>`)
           }
         })
         res.write(`</section>`)
