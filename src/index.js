@@ -39,14 +39,22 @@ const mimeTypes = {
   ".7z": "application/x-7z-compressed",
   ".mp4": "video/mp4",
   ".webm": "video/webm",
+  ".weba": "audio/webm",
   ".ogg": "video/ogg",
+  ".ogv": "video/ogg",
+  ".oga": "audio/ogg",
   ".mp3": "audio/mpeg",
+  ".mpeg": "video/mpeg",
+  ".mid": "audio/midi",
+  ".midi": "audio/midi",
   ".wav": "audio/wav",
   ".flac": "audio/flac",
   ".aac": "audio/aac",
   ".yml": "text/yaml",
   ".mkv": "video/webm",
   ".mov": "video/quicktime",
+  ".m4v": "video/mp4",
+  ".avi": "video/x-msvideo",
 }
 
 const basedir = process.env.BASEDIR || '/serve'
