@@ -57,6 +57,32 @@ const mimeTypes = {
   ".avi": "video/x-msvideo",
 }
 
+const css = `
+html,body,main{padding:0;margin:0;height:100vh;width:100vw;box-sizing:border-box;}
+*{font-family:sans-serif;font-size:20px;}
+main{padding:10px;gap:10px;display:flex;flex-direction:column;}
+section{min-height:1px;height:100%;overflow-y:auto;justify-content:flex-start;align-content:flex-start;}
+img.fill,video.fill{max-height:90%;object-fit:contain;}
+a{cursor:pointer;}
+h1{display:inline-block;}
+.grid{display:flex;flex-wrap:wrap;gap:2px;}
+.grid > .row,
+.grid > .row > a,
+.grid img,
+.grid video{display:flex;justify-content:center;align-items:center;text-align:center;overflow-wrap:anywhere;width:200px;height:200px;object-fit:cover;}
+.grid > .row:hover{background:#eee;}
+.grid > .row{box-sizing:border-box;background:#eee;border:1px solid #ccc;padding:10px;}
+.grid > .row:hover{background:#ddd !important;}
+.list{display:flex;flex-direction:column;gap:4px;}
+.list > .row{display:flex;flex-direction:row;justify-content:space-between;align-items:center;}
+.list > .row > a{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+@media screen and (max-width: 1200px) {
+  .hide-mobile{display:none;}
+}
+.grid .hide-mobile{display:none;}
+.error{border:1px solid red !important;background:pink !important;}
+`
+
 const basedir = process.env.BASEDIR || '/serve'
 const portNumber = parseInt(process.env.PORT || '3000');
 
@@ -92,7 +118,7 @@ const humanFileSize = (bytes, si = false) => {
     bytes /= thresh;
     ++u;
   } while (Math.round(Math.abs(bytes) * r) / r >= thresh && u < units.length - 1);
-  return bytes.toFixed(1) + ' ' + units[u];
+  return bytes.toFixed(0) + ' ' + units[u];
 }
 
 // GUARD: operation not supported on socket
@@ -127,21 +153,19 @@ const httpServer = http.createServer(async (req, res) => {
 
       // write title
       res.write(`<html><head>`)
+      res.write('<meta name="viewport" content="width=device-width, height=device-height, initial-scale=1.0, minimum-scale=1.0">')
       res.write(`<title>${relpath}</title>`)
-      res.write('<style>html,body,main{font-family:sans-serif;padding:0;margin:0;height:100vh;width:100vw;box-sizing:border-box;}</style>')
-      res.write('<style>main{padding:10px;gap:10px;display:flex;flex-direction:column;}</style>')
-      res.write('<style>section{min-height:1px;height:100%;overflow-y:auto;justify-content:flex-start;align-content:flex-start;}</style>')
-      res.write('<style>img.fill,video.fill{max-height:90%;object-fit:contain;}</style>')
-      res.write('<style>.grid{display:flex;flex-wrap:wrap;gap:2px;}.grid img,.grid video,.grid > *{display:flex;justify-content:center;align-items:center;overflow-wrap:anywhere;width:200px;height:200px;object-fit:cover;}.grid > *:hover{background:#eee;}</style>')
-      res.write('<style>.list{display:flex;flex-direction:column;gap:2px;}.list .row{display:flex;flex-direction:row;justify-content:space-between;}</style>')
+      res.write(`<style>${css}</style>`)
       res.write(`</head><body><main>`)
       res.write('<nav>')
-      if (gridView) {
-        res.write(`<a style="float:right;" href="?">List</a>`)
-      } else {
-        res.write(`<a style="float:right;" href="?view=grid">Grid</a>`)
-      }
+      res.write(`<div class="list"><div class="row">`)
       res.write(`<h1>Index of <a href="${encodeURIComponent(path.join(relpath, '..'))}?view=${gridView ? 'grid' : 'list'}">${relpath}</a></h1>`)
+      if (gridView) {
+        res.write(`<a href="?">List</a>`)
+      } else {
+        res.write(`<a href="?view=grid">Grid</a>`)
+      }
+      res.write('</div></div>')
       res.write('<hr>')
       res.write('</nav>')
 
@@ -153,51 +177,60 @@ const httpServer = http.createServer(async (req, res) => {
       } else if (renderPage && mimeType.startsWith('image')) {
         res.write(`<img class="fill" src="/${encodeURIComponent(relpath)}?view=${gridView ? 'grid' : 'list'}" />`)
       } else if (isDirectoryListing) {
-
+        // list directories
         res.write(`<section class="${gridView ? 'grid' : 'list'}">`)
-        const entries = fs.readdirSync(filepath);
-        /** @type {Object<string, fs.Stats>} */
-        const statsByFile = entries.reduce((prev, curr) => {
-          prev[curr] = fs.statSync(path.join(filepath, curr))
-          return prev
-        }, {})
-        await Promise.all(Object.values(statsByFile))
-        // list files
-        entries.sort((a, b) => {
-          // directories first, then alphabetical
-          const adir = statsByFile[a].isDirectory()
-          const bdir = statsByFile[b].isDirectory()
-          const compareCaseInsensitive = a.localeCompare(b, undefined, { sensitivity: 'base' })
-          return adir && bdir ? compareCaseInsensitive : adir ? -1 : bdir ? 1 : compareCaseInsensitive
-        }).forEach(file => {
-          const resolvedFile = path.resolve(filepath, file);
-          if (statsByFile[file].isDirectory()) {
-            // directory
-            res.write(`<a href="/${encodeURIComponent(path.join(relpath, file))}?view=${gridView ? 'grid' : 'list'}">+ ${file}</a>`)
-          } else {
-            // grid view
-            const media = isMediaType(getMimeType(file))
-            if (gridView && media.isImage) {
-              // images
-              res.write(`<a href="/${encodeURIComponent(path.join(relpath, file))}?view=page"><img loading="lazy" src="/${encodeURIComponent(path.join(relpath, file))}?view=thumb" /></a>`)
-            } else if (gridView && media.isVideo) {
-              // videos
-              res.write(`<a href="/${encodeURIComponent(path.join(relpath, file))}?view=page"><video controls loading="lazy"><source src="/${encodeURIComponent(path.join(relpath, file))}?view=0#t=0.1" /></video></a>`)
+        try {
+          const entries = fs.readdirSync(filepath);
+          /** @type {Object<string, fs.Stats>} */
+          const statsByFile = entries.reduce((prev, curr) => {
+            prev[curr] = fs.statSync(path.join(filepath, curr))
+            return prev
+          }, {})
+          await Promise.all(Object.values(statsByFile))
+          // list files
+          entries.sort((a, b) => {
+            // directories first, then alphabetical
+            const adir = statsByFile[a].isDirectory()
+            const bdir = statsByFile[b].isDirectory()
+            const compareCaseInsensitive = a.localeCompare(b, undefined, { sensitivity: 'base' })
+            return adir && bdir ? compareCaseInsensitive : adir ? -1 : bdir ? 1 : compareCaseInsensitive
+          }).forEach(file => {
+            if (statsByFile[file].isDirectory()) {
+              // directory
+              res.write(`<div class="row">`)
+              res.write(`<a href="/${encodeURIComponent(path.join(relpath, file))}?view=${gridView ? 'grid' : 'list'}">+ ${file}</a>`)
+              res.write(`<span class="hide-mobile">${statsByFile[file].mtime.toISOString().substring(0, 10)}</span>`)
+              res.write(`</div>`)
             } else {
-              // everything else
-              if (gridView) {
-                res.write(`<a href="/${encodeURIComponent(path.join(relpath, file))}?view=page">${file}</a>`)
+              // grid view
+              const media = isMediaType(getMimeType(file))
+              if (gridView && media.isImage) {
+                // images
+                res.write(`<div class="row"><a href="/${encodeURIComponent(path.join(relpath, file))}?view=page"><img loading="lazy" src="/${encodeURIComponent(path.join(relpath, file))}?view=thumb" /></a></div>`)
+              } else if (gridView && media.isVideo) {
+                // videos
+                res.write(`<div class="row"><a href="/${encodeURIComponent(path.join(relpath, file))}?view=page"><video controls loading="lazy"><source src="/${encodeURIComponent(path.join(relpath, file))}?view=0#t=0.1" /></video></a></div>`)
               } else {
-                res.write(`<div class="row">
-                <a href="/${encodeURIComponent(path.join(relpath, file))}?view=page">${file}</a>
-                <span>${humanFileSize(statsByFile[file].size, true)}
-                /
-                ${statsByFile[file].mtime.toISOString().substring(0, 10)}</span>
-                </div>`)
+                // everything else
+                if (gridView) {
+                  res.write(`<div class="row"><a href="/${encodeURIComponent(path.join(relpath, file))}?view=page">${file}</a></div>`)
+                } else {
+                  res.write(`<div class="row">
+                  <a href="/${encodeURIComponent(path.join(relpath, file))}?view=page">${file}</a>
+                  <span class="hide-mobile">${humanFileSize(statsByFile[file].size, true)}
+                  /
+                  ${statsByFile[file].mtime.toISOString().substring(0, 10)}</span>
+                  </div>`)
+                }
               }
             }
+          })
+          if (entries.length === 0) {
+            res.write(`<div class="row error">Empty directory.</div>`)
           }
-        })
+        } catch (err) {
+          res.write(`<div class="row error">Permission denied: ${err.message}</div>`)
+        }
         res.write(`</section>`)
       }
       res.write('</main></body></html>')
