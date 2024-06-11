@@ -63,17 +63,17 @@ html,body,main{padding:0;margin:0;height:100vh;width:100vw;box-sizing:border-box
 main{padding:10px;gap:10px;display:flex;flex-direction:column;}
 section{min-height:1px;height:100%;overflow-y:auto;justify-content:flex-start;align-content:flex-start;}
 img.fill,video.fill{max-height:90%;object-fit:contain;}
-a{cursor:pointer;}
+a{cursor:pointer;flex-grow:1;padding:2px;}
+.no-grow{flex-grow:0 !important;}
 h1{display:inline-block;}
 .grid{display:flex;flex-wrap:wrap;gap:2px;}
 .grid > .row,
 .grid > .row > a,
 .grid img,
 .grid video{display:flex;justify-content:center;align-items:center;text-align:center;overflow-wrap:anywhere;width:200px;height:200px;object-fit:cover;}
-.grid > .row:hover{background:#eee;}
 .grid > .row{box-sizing:border-box;background:#eee;border:1px solid #ccc;padding:10px;}
-.grid > .row:hover{background:#ddd !important;}
-.list{display:flex;flex-direction:column;gap:4px;}
+.row:hover{background:#ddd !important;}
+.list{display:flex;flex-direction:column;gap:2px;}
 .list > .row{display:flex;flex-direction:row;justify-content:space-between;align-items:center;}
 .list > .row > a{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
 @media screen and (max-width: 1200px) {
@@ -161,9 +161,9 @@ const httpServer = http.createServer(async (req, res) => {
       res.write(`<div class="list"><div class="row">`)
       res.write(`<h1>Index of <a href="${encodeURIComponent(path.join(relpath, '..'))}?view=${gridView ? 'grid' : 'list'}">${relpath}</a></h1>`)
       if (gridView) {
-        res.write(`<a href="?">List</a>`)
+        res.write(`<a class="no-grow" href="?">List</a>`)
       } else {
-        res.write(`<a href="?view=grid">Grid</a>`)
+        res.write(`<a class="no-grow" href="?view=grid">Grid</a>`)
       }
       res.write('</div></div>')
       res.write('<hr>')
