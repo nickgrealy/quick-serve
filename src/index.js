@@ -291,7 +291,12 @@ const httpServer = http.createServer(async (req, res) => {
 
         console.log(`Range: ${start}-${end}/${size}`)
 
-        const readable = fs.createReadStream(filepath, { start: start, end: end });
+        const readable = fs.createReadStream(filepath, {
+          flags: 'r',
+          start: start,
+          end: end,
+          highWaterMark: 256 * 1024
+        });
         pipeline(readable, res, err => {
           respond(res, 500, "Error reading file: " + err)
         });
