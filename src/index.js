@@ -257,7 +257,7 @@ const httpServer = http.createServer(async (req, res) => {
         // handle range
         // inspired by: https://github.com/phoenixinfotech1984/node-content-range
         let [start, end] = range.replace(/bytes=/, "").split("-");
-        const chunksize = 1024 * 1024 * 0.5 // MB
+        const chunksize = typeof process.env.CHUNK_SIZE_BYTES === 'string' ? parseInt(process.env.CHUNK_SIZE_BYTES) : (1024 * 1024 * 5) // MB
         start = parseInt(start, 10);
         end = end ? parseInt(end, 10) : Math.min(size - 1, start + chunksize);
 
